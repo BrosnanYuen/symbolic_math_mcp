@@ -1,0 +1,9 @@
+axioms:
+  basic:
+    vars: ["x"]
+    equation: "x + 2 = 5"
+
+solve_for_x:
+  vars: ["x"]
+  equation: |+
+    x + 2 = 5 -> x = 3

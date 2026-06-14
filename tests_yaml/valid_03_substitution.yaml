@@ -1,0 +1,12 @@
+axioms:
+  power:
+    vars: ["P", "V", "I"]
+    equation: "P = V*I"
+  current:
+    vars: ["I", "V", "R"]
+    equation: "I = V/R"
+
+power_voltage:
+  vars: ["P", "V", "I", "R"]
+  equation: |+
+    P = V*I ; I = V/R -> P = V^2/R

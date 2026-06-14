@@ -1,0 +1,7 @@
+axioms:
+  ohms_law:
+    equation: "V = I*R"
+
+current_from_ohms:
+  equation: |+
+    V = I*R -> I = V/R

@@ -1,0 +1,4 @@
+theorem:
+  vars: ["x"]
+  equation: |+
+    x + 2 = 5 -> x = 3

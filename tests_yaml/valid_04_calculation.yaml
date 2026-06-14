@@ -1,0 +1,13 @@
+axioms:
+  power_voltage:
+    vars: ["P", "V", "R"]
+    equation: "P = V^2/R"
+
+calculations:
+  eval_power:
+    vars: ["V", "R"]
+    values: [12.0, 3.0]
+    equation: "V^2/R"
+    tolerance: 0.001
+    expected_value: 48.0
+    expected_symbol: "P"

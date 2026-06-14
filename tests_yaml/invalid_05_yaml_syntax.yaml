@@ -1,0 +1,4 @@
+axioms:
+  broken:
+    vars: ["x"]
+    equation: "x + 2 = 5
