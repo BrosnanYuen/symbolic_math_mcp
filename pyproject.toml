@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "symbolic_math_mcp"
+version = "0.1.0"
+description = "FastMCP server for validating symbolic math YAML files with symbolic-math-verify."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+  {name = "Brosnan Yuen"}
+]
+dependencies = [
+  "fastmcp>=3.4.2",
+  "symbolic-math-verify>=0.1.1",
+]
+
+[project.optional-dependencies]
+dev = []
+
+[project.scripts]
+symbolic-math-mcp = "symbolic_math_mcp.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
