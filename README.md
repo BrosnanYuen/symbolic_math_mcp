@@ -132,3 +132,12 @@ The integration test starts a real stdio MCP server subprocess and validates:
 
 - 5 valid YAML files in [tests_yaml](/home/brosnan/symbolic_math_mcp/symbolic_math_mcp/tests_yaml)
 - 5 invalid YAML files in [tests_yaml](/home/brosnan/symbolic_math_mcp/symbolic_math_mcp/tests_yaml)
+
+## Codex Config
+```
+[mcp_servers.symbolic_math_mcp]
+url = "http://localhost:8753/mcp"
+
+[mcp_servers.symbolic_math_mcp.tools.check_symbolic_math]
+approval_mode = "approve"
+```
