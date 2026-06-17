@@ -49,3 +49,4 @@ Guidance:
 - Use `check_symbolic_math` for one file.
 - Use `check_symbolic_math_parallel` for a directory of `.yaml` files.
 - Treat any result other than `"Math proofs are valid"` as a failed verification.
+- Strongly prefer `check_symbolic_math_parallel` over `check_symbolic_math` for multiple files
