@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Callable
 
@@ -45,17 +46,9 @@ class SymbolicMathService:
             return _timeout_response(normalized_name)
         try:
             path = Path(normalized_name)
-            if path.suffix.lower() != ".yaml":
-                return _file_not_found_response(normalized_name)
-            if not path.exists() or not path.is_file():
-                return _file_not_found_response(normalized_name)
-            try:
-                with path.open("r", encoding="utf-8"):
-                    pass
-            except FileNotFoundError:
-                return _file_not_found_response(normalized_name)
-            except OSError:
-                return _file_read_error_response(normalized_name)
+            checked = _check_yaml_file(path)
+            if checked is not None:
+                return checked
 
             remaining = self._total_timeout - (time.monotonic() - started)
             if remaining <= 0:
@@ -73,11 +66,97 @@ class SymbolicMathService:
         finally:
             self._slots.release()
 
+    def check_symbolic_math_parallel(self, dir_path: str) -> dict[str, object]:
+        """Validate every YAML file in a directory and return one synchronous aggregate response."""
+        started = time.monotonic()
+        normalized_dir = str(dir_path)
+        acquired = self._slots.acquire(timeout=self._total_timeout)
+        if not acquired:
+            return _timeout_response(normalized_dir)
+        try:
+            directory = Path(normalized_dir)
+            if not directory.is_absolute() or not directory.exists() or not directory.is_dir():
+                return _file_not_found_response(normalized_dir)
+            try:
+                yaml_paths = sorted(
+                    path for path in directory.iterdir() if path.is_file() and path.suffix.lower() == ".yaml"
+                )
+            except FileNotFoundError:
+                return _file_not_found_response(normalized_dir)
+            except OSError:
+                return _file_read_error_response(normalized_dir)
+            if not yaml_paths:
+                return _file_not_found_response(normalized_dir)
+
+            normalized_paths: list[str] = []
+            for path in yaml_paths:
+                checked = _check_yaml_file(path)
+                if checked is not None:
+                    return checked
+                normalized_paths.append(str(path))
+
+            remaining = self._total_timeout - (time.monotonic() - started)
+            if remaining <= 0:
+                return _timeout_response(normalized_dir)
+
+            futures: dict[str, Future[str]] = {
+                filename: self._executor.submit(self._verifier, filename)
+                for filename in normalized_paths
+            }
+
+            results: dict[str, str] = {}
+            for filename, future in futures.items():
+                remaining = self._total_timeout - (time.monotonic() - started)
+                if remaining <= 0:
+                    future.cancel()
+                    _cancel_futures(futures.values())
+                    return _timeout_response(normalized_dir)
+                try:
+                    results[filename] = future.result(timeout=remaining)
+                except TimeoutError:
+                    future.cancel()
+                    _cancel_futures(futures.values())
+                    return _timeout_response(normalized_dir)
+                except Exception:
+                    _cancel_futures(futures.values())
+                    return _unknown_error_response(normalized_dir)
+            return _parallel_success_response(normalized_dir, results)
+        finally:
+            self._slots.release()
+
+
+def _cancel_futures(futures: Iterable[Future[str]]) -> None:
+    for future in futures:
+        future.cancel()
+
+
+def _check_yaml_file(path: Path) -> dict[str, str] | None:
+    normalized_name = str(path)
+    if path.suffix.lower() != ".yaml":
+        return _file_not_found_response(normalized_name)
+    if not path.exists() or not path.is_file():
+        return _file_not_found_response(normalized_name)
+    try:
+        with path.open("r", encoding="utf-8"):
+            return None
+    except FileNotFoundError:
+        return _file_not_found_response(normalized_name)
+    except OSError:
+        return _file_read_error_response(normalized_name)
+
 
 def _success_response(filename: str, result: str) -> dict[str, str]:
     return {
         "status": "Tool call completed!",
         "filename": filename,
+        "result": result,
+    }
+
+
+def _parallel_success_response(dir_path: str, result: dict[str, str]) -> dict[str, object]:
+    return {
+        "status": "Parallel Tool call completed!",
+        "dir_path": dir_path,
         "result": result,
     }
 

@@ -2,5 +2,5 @@
   "mcp_server_name": "My Symbolic Math MCP Server",
   "mcp_server_url": "http://localhost:8753",
   "max_requests": 10,
-  "total_timeout": 600
+  "total_timeout": 6000
 }

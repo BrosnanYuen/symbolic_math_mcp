@@ -65,6 +65,80 @@ class TestSymbolicMathService(unittest.TestCase):
             response = service.check_symbolic_math(str(yaml_path))
         self.assertEqual("TIMEOUT ERROR!", response["result"])
 
+    def test_parallel_success_response_uses_verifier_results(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            first_path = Path(tmpdir) / "first.yaml"
+            second_path = Path(tmpdir) / "second.yaml"
+            first_path.write_text("axioms: {}\n", encoding="utf-8")
+            second_path.write_text("axioms: {}\n", encoding="utf-8")
+
+            def verifier(filename: str) -> str:
+                return f"verified:{Path(filename).name}"
+
+            service = SymbolicMathService(2, 5, verifier=verifier)
+            self.addCleanup(service.shutdown)
+
+            response = service.check_symbolic_math_parallel(tmpdir)
+
+        self.assertEqual("Parallel Tool call completed!", response["status"])
+        self.assertEqual(tmpdir, response["dir_path"])
+        self.assertEqual(
+            {
+                str(first_path): "verified:first.yaml",
+                str(second_path): "verified:second.yaml",
+            },
+            response["result"],
+        )
+
+    def test_parallel_requires_absolute_directory(self) -> None:
+        service = SymbolicMathService(1, 5, verifier=lambda _: "unused")
+        self.addCleanup(service.shutdown)
+        response = service.check_symbolic_math_parallel("tests_yaml")
+        self.assertEqual("FILE NOT FOUND!", response["result"])
+
+    def test_parallel_timeout_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for index in range(2):
+                (Path(tmpdir) / f"slow_{index}.yaml").write_text("axioms: {}\n", encoding="utf-8")
+
+            def slow_verifier(_: str) -> str:
+                time.sleep(0.3)
+                return "Math proofs are valid"
+
+            service = SymbolicMathService(2, 0.1, verifier=slow_verifier)
+            self.addCleanup(service.shutdown)
+
+            response = service.check_symbolic_math_parallel(tmpdir)
+
+        self.assertEqual("TIMEOUT ERROR!", response["result"])
+
+    def test_parallel_max_requests_bounds_worker_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for index in range(3):
+                (Path(tmpdir) / f"proof_{index}.yaml").write_text("axioms: {}\n", encoding="utf-8")
+
+            active = 0
+            max_active = 0
+            lock = threading.Lock()
+
+            def verifier(_: str) -> str:
+                nonlocal active, max_active
+                with lock:
+                    active += 1
+                    max_active = max(max_active, active)
+                time.sleep(0.2)
+                with lock:
+                    active -= 1
+                return "Math proofs are valid"
+
+            service = SymbolicMathService(2, 2, verifier=verifier)
+            self.addCleanup(service.shutdown)
+
+            response = service.check_symbolic_math_parallel(tmpdir)
+
+        self.assertEqual("Parallel Tool call completed!", response["status"])
+        self.assertEqual(2, max_active)
+
     def test_max_requests_queues_work(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_one = Path(tmpdir) / "one.yaml"
