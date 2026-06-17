@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,7 +13,7 @@ from fastmcp.client import Client, PythonStdioTransport
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RUNNER = PROJECT_ROOT / "run_server.py"
-PYTHON_BIN = PROJECT_ROOT.parent / ".venv" / "bin" / "python"
+PYTHON_BIN = Path(sys.executable)
 FIXTURE_DIR = PROJECT_ROOT / "tests_yaml"
 
 
